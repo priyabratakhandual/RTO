@@ -1,0 +1,950 @@
+"""
+RTO AI Enrollment System - CLI Interface
+Command-line interface for the enrollment system
+"""
+
+from app import EnrollmentManager, VoiceOutputHandler
+
+# ============================================================================
+# DATA MODELS
+# ============================================================================
+
+class StudentStatus(Enum):
+    INQUIRY = "inquiry"
+    FOLLOW_UP_1 = "follow_up_1"
+    FOLLOW_UP_2 = "follow_up_2"
+    QUALIFIED = "qualified"
+    ENROLLED = "enrolled"
+    REJECTED = "rejected"
+
+class StudentRecord:
+    def __init__(self, name, email, phone, program, status=StudentStatus.INQUIRY):
+        self.id = self._generate_id()
+        self.name = name
+        self.email = email
+        self.phone = phone
+        self.program = program
+        self.status = status
+        self.created_at = datetime.now()
+        self.last_contact = datetime.now()
+        self.conversation_history = []
+        self.qualification_score = 0
+        self.notes = []
+    
+    def _generate_id(self):
+        return f"STU_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "email": self.email,
+            "phone": self.phone,
+            "program": self.program,
+            "status": self.status.value,
+            "created_at": self.created_at.isoformat(),
+            "last_contact": self.last_contact.isoformat(),
+            "qualification_score": self.qualification_score,
+            "notes": self.notes
+        }
+
+# ============================================================================
+# DATABASE (In-Memory)
+# ============================================================================
+
+class StudentDatabase:
+    def __init__(self):
+        self.students = {}
+    
+    def add_student(self, student):
+        self.students[student.id] = student
+        return student.id
+    
+    def get_student(self, student_id):
+        return self.students.get(student_id)
+    
+    def update_student(self, student_id, **kwargs):
+        if student_id in self.students:
+            student = self.students[student_id]
+            for key, value in kwargs.items():
+                if hasattr(student, key):
+                    setattr(student, key, value)
+            student.last_contact = datetime.now()
+    
+    def get_students_by_status(self, status):
+        return [s for s in self.students.values() if s.status == status]
+    
+    def get_followup_candidates(self):
+        now = datetime.now()
+        candidates = []
+        for student in self.students.values():
+            days_since_contact = (now - student.last_contact).days
+            if student.status == StudentStatus.INQUIRY and days_since_contact >= 3:
+                candidates.append(student)
+            elif student.status == StudentStatus.FOLLOW_UP_1 and days_since_contact >= 5:
+                candidates.append(student)
+        return candidates
+    
+    def list_all(self):
+        return list(self.students.values())
+
+# ============================================================================
+# AGENTIC AI SYSTEM
+# ============================================================================
+
+class EnrollmentAgent:
+    """
+    Autonomous AI agent for student enrollment, qualification, and follow-ups
+    Uses Groq as the underlying intelligence
+    """
+    
+    def __init__(self, db):
+        self.db = db
+        self.conversation_history = []
+        self.model = "llama-3.3-70b-versatile"  # Using Groq model
+        
+        self.system_prompt = """You are an expert RTO (Registered Training Organization) enrollment agent. Your role is to:
+
+1. QUALIFY STUDENTS: Ask relevant questions about their background, career goals, and learning preferences
+2. RECOMMEND PROGRAMS: Based on their profile, suggest appropriate training programs
+3. HANDLE OBJECTIONS: Address concerns about cost, time commitment, prerequisites, etc.
+4. CLOSE ENROLLMENT: Guide qualified students to enrollment
+5. FOLLOW-UP: For non-qualified leads, schedule follow-ups and maintain engagement
+
+RULES:
+- Be conversational and friendly
+- Ask one question at a time
+- Qualify based on: motivation, learning capacity, program fit, availability
+- Score qualification 0-100 based on responses
+- For high scorers (>70), move toward enrollment
+- For medium scorers (40-70), recommend programs and schedule follow-up
+- For low scorers (<40), thank them and offer future opportunities
+- Keep responses concise (2-3 sentences max)
+- Always end with a question or call-to-action
+
+PROGRAMS OFFERED:
+- Certificate III in Business Administration
+- Certificate IV in Web Development
+- Diploma of Marketing
+- Advanced Diploma of Project Management
+- Hospitality Management
+- Nursing Assistant Training
+
+PRICING:
+- Certificate III/IV: $3,000-$5,000
+- Diploma programs: $6,000-$8,000
+- Advanced Diplomas: $10,000-$12,000
+- Payment plans available
+
+When you make a decision about qualification or recommend action, explicitly state it like:
+[QUALIFICATION_SCORE: XX]
+[RECOMMENDATION: enroll/follow_up/not_interested]
+[ACTION: program_recommendation/objection_handling/enrollment_process]"""
+    
+    def chat(self, user_message, context=None):
+        """
+        Send a message and get an agent response
+        context: Optional context about the student
+        """
+        # Build messages array
+        messages = self.conversation_history.copy()
+        
+        # Add context if provided
+        if context:
+            context_msg = f"[STUDENT CONTEXT]\nName: {context.get('name')}\nProgram Interest: {context.get('program')}\nStatus: {context.get('status')}\nPrevious Notes: {context.get('notes')}\n\n"
+            if messages:
+                # Add context to first user message
+                messages[0] = {"role": "user", "content": context_msg + messages[0]["content"]}
+            else:
+                messages.append({"role": "user", "content": context_msg + user_message})
+        
+        messages.append({"role": "user", "content": user_message})
+        
+        # Call Groq API
+        response = client.chat.completions.create(
+            model=self.model,
+            max_tokens=500,
+            messages=[{"role": "system", "content": self.system_prompt}] + messages
+        )
+        
+        assistant_message = response.choices[0].message.content
+        
+        # Store in conversation history
+        self.conversation_history.append({"role": "user", "content": user_message})
+        self.conversation_history.append({"role": "assistant", "content": assistant_message})
+        
+        # Parse structured data from response
+        parsed = self._parse_response(assistant_message)
+        
+        return {
+            "message": assistant_message,
+            "qualification_score": parsed.get("score"),
+            "recommendation": parsed.get("recommendation"),
+            "action": parsed.get("action")
+        }
+    
+    def _parse_response(self, response):
+        """Extract structured data from agent response"""
+        score = None
+        recommendation = None
+        action = None
+        
+        # Extract qualification score
+        score_match = re.search(r'\[QUALIFICATION_SCORE:\s*(\d+)\]', response)
+        if score_match:
+            score = int(score_match.group(1))
+        
+        # Extract recommendation
+        rec_match = re.search(r'\[RECOMMENDATION:\s*(\w+)\]', response)
+        if rec_match:
+            recommendation = rec_match.group(1)
+        
+        # Extract action
+        action_match = re.search(r'\[ACTION:\s*([\w_]+)\]', response)
+        if action_match:
+            action = action_match.group(1)
+        
+        return {
+            "score": score,
+            "recommendation": recommendation,
+            "action": action
+        }
+    
+    def reset_conversation(self):
+        """Reset conversation history for new student"""
+        self.conversation_history = []
+
+# ============================================================================
+# ENROLLMENT MANAGER
+# ============================================================================
+
+class EnrollmentManager:
+    """Orchestrates the entire enrollment process"""
+    
+    def __init__(self):
+        self.db = StudentDatabase()
+        self.agent = EnrollmentAgent(self.db)
+    
+    def new_inquiry(self, name, email, phone, program_interest):
+        """Create new student inquiry"""
+        student = StudentRecord(name, email, phone, program_interest)
+        student_id = self.db.add_student(student)
+        
+        # Start conversation
+        self.agent.reset_conversation()
+        initial_message = f"Hi {name}! Thanks for your interest in our {program_interest} program. I'd love to learn more about you. What's your main career goal?"
+        
+        student.conversation_history.append({"role": "assistant", "content": initial_message})
+        
+        return student_id, initial_message
+    
+    def process_response(self, student_id, user_message):
+        """Process student response"""
+        student = self.db.get_student(student_id)
+        if not student:
+            return {"error": "Student not found"}
+        
+        # Get context for agent
+        context = {
+            "name": student.name,
+            "program": student.program,
+            "status": student.status.value,
+            "notes": student.notes[-5:] if student.notes else []  # Last 5 notes
+        }
+        
+        # Get agent response
+        response = self.agent.chat(user_message, context)
+        
+        # Store conversation
+        student.conversation_history.append({"role": "user", "content": user_message})
+        student.conversation_history.append({"role": "assistant", "content": response["message"]})
+        
+        # Update student based on agent decision
+        if response["qualification_score"]:
+            student.qualification_score = response["qualification_score"]
+        
+        if response["recommendation"] == "enroll":
+            student.status = StudentStatus.QUALIFIED
+            student.notes.append(f"[{datetime.now().isoformat()}] Qualified for enrollment")
+        elif response["recommendation"] == "follow_up":
+            if student.status == StudentStatus.INQUIRY:
+                student.status = StudentStatus.FOLLOW_UP_1
+            else:
+                student.status = StudentStatus.FOLLOW_UP_2
+            student.notes.append(f"[{datetime.now().isoformat()}] Follow-up scheduled")
+        elif response["recommendation"] == "not_interested":
+            student.status = StudentStatus.REJECTED
+            student.notes.append(f"[{datetime.now().isoformat()}] Student marked as not interested")
+        
+        self.db.update_student(student_id, status=student.status, qualification_score=student.qualification_score)
+        
+        return response
+    
+    def generate_followup_message(self, student_id):
+        """Generate AI-powered follow-up message"""
+        student = self.db.get_student(student_id)
+        if not student:
+            return {"error": "Student not found"}
+        
+        self.agent.reset_conversation()
+        
+        # Create follow-up context
+        days_passed = (datetime.now() - student.last_contact).days
+        followup_prompt = f"Generate a friendly follow-up message for {student.name} who inquired about {student.program} {days_passed} days ago. They haven't responded yet. Keep it short and personalized."
+        
+        response = self.agent.chat(followup_prompt, {
+            "name": student.name,
+            "program": student.program,
+            "status": student.status.value,
+            "notes": student.notes
+        })
+        
+        return {
+            "followup_message": response["message"],
+            "recommended_channel": self._pick_channel(student)
+        }
+    
+    def _pick_channel(self, student):
+        """Recommend best communication channel"""
+        # Simple heuristic - can be enhanced with ML
+        if "@" in student.email:
+            return "email"
+        elif student.phone:
+            return "sms"
+        return "whatsapp"
+    
+    def get_dashboard(self):
+        """Get enrollment dashboard metrics"""
+        all_students = self.db.list_all()
+        
+        return {
+            "total_inquiries": len(all_students),
+            "by_status": {
+                "inquiry": len(self.db.get_students_by_status(StudentStatus.INQUIRY)),
+                "follow_up_1": len(self.db.get_students_by_status(StudentStatus.FOLLOW_UP_1)),
+                "follow_up_2": len(self.db.get_students_by_status(StudentStatus.FOLLOW_UP_2)),
+                "qualified": len(self.db.get_students_by_status(StudentStatus.QUALIFIED)),
+                "enrolled": len(self.db.get_students_by_status(StudentStatus.ENROLLED)),
+                "rejected": len(self.db.get_students_by_status(StudentStatus.REJECTED))
+            },
+            "avg_qualification_score": sum(s.qualification_score for s in all_students) / len(all_students) if all_students else 0,
+            "followup_due": len(self.db.get_followup_candidates()),
+            "conversion_rate": len(self.db.get_students_by_status(StudentStatus.ENROLLED)) / len(all_students) * 100 if all_students else 0
+        }
+    
+    def export_students(self):
+        """Export all students as JSON"""
+        students = self.db.list_all()
+        return {
+            "export_date": datetime.now().isoformat(),
+            "total_records": len(students),
+            "students": [s.to_dict() for s in students]
+        }
+
+# ============================================================================
+# VOICE INPUT/OUTPUT HANDLERS
+# ============================================================================
+
+class VoiceOutputHandler:
+    """Handle voice output using OpenAI TTS API with female voice"""
+    
+    def __init__(self):
+        self.voice = "nova"  # OpenAI female voice: "nova" or "shimmer"
+        self.use_openai_tts = True
+        self._is_playing = False
+        self._play_lock = None
+        self._check_openai_available()
+        # Initialize threading lock
+        import threading
+        self._play_lock = threading.Lock()
+    
+    def _check_openai_available(self):
+        """Check if OpenAI TTS is available"""
+        if not openai_client.api_key:
+            self.use_openai_tts = False
+            # Fallback to pyttsx3 if OpenAI not available
+            try:
+                import pyttsx3
+                self.tts_engine = pyttsx3.init()
+                voices = self.tts_engine.getProperty('voices')
+                if len(voices) > 1:
+                    self.tts_engine.setProperty('voice', voices[1].id)  # Usually female
+                self.use_openai_tts = False
+            except:
+                self.tts_engine = None
+    
+    def speak(self, text, async_mode=False):
+        """Convert text to speech and play it using OpenAI TTS
+        async_mode=False ensures sequential playback (prevents overlapping)
+        """
+        # Wait if another audio is playing
+        if self._play_lock:
+            self._play_lock.acquire()
+        
+        try:
+            if self.use_openai_tts:
+                result = self._speak_openai(text, async_mode)
+            else:
+                result = self._speak_pyttsx3(text, async_mode)
+            return result
+        finally:
+            if self._play_lock:
+                self._play_lock.release()
+    
+    def _speak_openai(self, text, async_mode):
+        """Use OpenAI TTS API for high-quality female voice"""
+        try:
+            import tempfile
+            import subprocess
+            import platform
+            
+            # Generate speech using OpenAI TTS
+            response = openai_client.audio.speech.create(
+                model="tts-1",
+                voice=self.voice,  # "nova" is a high-quality female voice
+                input=text,
+                speed=1.0
+            )
+            
+            # Save to temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_file:
+                tmp_path = tmp_file.name
+                # Write audio content to file (using iter_bytes for proper streaming)
+                with open(tmp_path, 'wb') as f:
+                    for chunk in response.iter_bytes():
+                        f.write(chunk)
+            
+            # Play the audio file (always synchronous to prevent overlapping)
+            self._is_playing = True
+            try:
+                self._play_audio_file(tmp_path)
+            finally:
+                self._is_playing = False
+                # Clean up after playback
+                import time
+                time.sleep(0.1)  # Small delay to ensure file is released
+                if os.path.exists(tmp_path):
+                    try:
+                        os.unlink(tmp_path)
+                    except:
+                        pass  # File might be in use, will be cleaned up later
+            return True
+                
+        except Exception as e:
+            print(f"⚠️  OpenAI TTS error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to pyttsx3 if available
+            if hasattr(self, 'tts_engine') and self.tts_engine:
+                return self._speak_pyttsx3(text, async_mode)
+            return False
+    
+    def _play_audio_file(self, file_path):
+        """Play audio file using reliable Python library"""
+        if not os.path.exists(file_path):
+            print(f"⚠️  Audio file not found: {file_path}")
+            return False
+        
+        try:
+            # Try using pydub with simpleaudio (most reliable)
+            try:
+                from pydub import AudioSegment
+                from pydub.playback import play
+                audio = AudioSegment.from_mp3(file_path)
+                play(audio)
+                return True
+            except ImportError as e:
+                pass
+            except Exception as e:
+                pass
+            
+            # Try using pygame (good cross-platform support)
+            try:
+                import pygame
+                pygame.mixer.init(frequency=22050, size=-16, channels=2, buffer=512)
+                pygame.mixer.music.load(file_path)
+                pygame.mixer.music.play()
+                while pygame.mixer.music.get_busy():
+                    pygame.time.Clock().tick(10)
+                pygame.mixer.quit()
+                return True
+            except ImportError:
+                pass
+            except Exception as e:
+                pass
+            
+            # Try using playsound
+            try:
+                from playsound import playsound
+                playsound(file_path, block=True)
+                return True
+            except ImportError:
+                pass
+            except Exception as e:
+                pass
+            
+            # Fallback to system commands
+            import subprocess
+            import platform
+            system = platform.system()
+            if system == "Linux":
+                # Try multiple Linux audio players
+                for player in ["mpg123", "mpg321", "ffplay", "aplay", "paplay"]:
+                    try:
+                        result = subprocess.run([player, file_path], check=False, 
+                                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+                        if result.returncode == 0:
+                            return True
+                    except:
+                        continue
+            elif system == "Darwin":  # macOS
+                result = subprocess.run(["afplay", file_path], check=False,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+                return result.returncode == 0
+            elif system == "Windows":
+                result = subprocess.run(["start", file_path], shell=True, check=False,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+                return result.returncode == 0
+            
+            print("⚠️  No audio playback method available. Please install pydub, pygame, or system audio player.")
+            return False
+        except Exception as e:
+            print(f"⚠️  Audio playback error: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
+    def _speak_pyttsx3(self, text, async_mode):
+        """Fallback to pyttsx3 if OpenAI not available"""
+        if not hasattr(self, 'tts_engine') or self.tts_engine is None:
+            return False
+        
+        try:
+            # Always synchronous to prevent overlapping
+            self._is_playing = True
+            self.tts_engine.say(text)
+            self.tts_engine.runAndWait()
+            self._is_playing = False
+            return True
+        except Exception as e:
+            self._is_playing = False
+            return False
+    
+    def save_to_file(self, text, filename):
+        """Save speech to audio file"""
+        if self.use_openai_tts:
+            try:
+                response = openai_client.audio.speech.create(
+                    model="tts-1",
+                    voice=self.voice,
+                    input=text,
+                    speed=1.0
+                )
+                # Use with_streaming_response for proper streaming
+                with open(filename, 'wb') as f:
+                    for chunk in response.iter_bytes():
+                        f.write(chunk)
+                return True
+            except Exception as e:
+                return False
+        elif hasattr(self, 'tts_engine') and self.tts_engine:
+            try:
+                self.tts_engine.save_to_file(text, filename)
+                self.tts_engine.runAndWait()
+                return True
+            except Exception as e:
+                return False
+        return False
+
+class VoiceInputHandler:
+    """Handle voice input using Whisper for speech-to-text"""
+    
+    def __init__(self):
+        self.whisper_model = "whisper-1"
+    
+    def transcribe_audio_file(self, audio_file_path):
+        """Transcribe audio file using Whisper API"""
+        try:
+            with open(audio_file_path, "rb") as audio_file:
+                transcript = openai_client.audio.transcriptions.create(
+                    model=self.whisper_model,
+                    file=audio_file,
+                    response_format="text"
+                )
+            return transcript
+        except Exception as e:
+            return f"Error transcribing audio: {str(e)}"
+    
+    def record_and_transcribe(self, duration=5):
+        """
+        Record audio from microphone and transcribe it
+        duration: Recording duration in seconds
+        """
+        try:
+            import sounddevice as sd
+            import soundfile as sf
+            
+            sample_rate = 16000  # Whisper works best with 16kHz
+            
+            print(f"\n🎤 Recording for {duration} seconds... Speak now!")
+            print("Recording...", end="", flush=True)
+            
+            # Record audio
+            audio_data = sd.rec(
+                int(duration * sample_rate),
+                samplerate=sample_rate,
+                channels=1,
+                dtype='float32'
+            )
+            sd.wait()  # Wait until recording is finished
+            
+            print(" Done!")
+            print("🔄 Transcribing...", end="", flush=True)
+            
+            # Save to temporary file
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
+                sf.write(tmp_file.name, audio_data, sample_rate)
+                tmp_path = tmp_file.name
+            
+            # Transcribe
+            transcript = self.transcribe_audio_file(tmp_path)
+            
+            # Clean up
+            os.unlink(tmp_path)
+            
+            print(" Done!")
+            return transcript
+            
+        except ImportError:
+            print("\n❌ Error: sounddevice and soundfile packages are required for voice input.")
+            print("Install them with: pip install sounddevice soundfile")
+            return None
+        except Exception as e:
+            print(f"\n❌ Error recording/transcribing: {str(e)}")
+            return None
+    
+    def transcribe_from_file(self, file_path):
+        """Transcribe audio from a file path"""
+        if not os.path.exists(file_path):
+            return f"Error: File not found: {file_path}"
+        
+        print("🔄 Transcribing audio file...", end="", flush=True)
+        transcript = self.transcribe_audio_file(file_path)
+        print(" Done!")
+        return transcript
+
+# ============================================================================
+# FLASK WEB APPLICATION
+# ============================================================================
+
+app = Flask(__name__)
+CORS(app)
+
+# Global manager instance
+global_manager = None
+
+def get_manager():
+    """Get or create the global enrollment manager"""
+    global global_manager
+    if global_manager is None:
+        global_manager = EnrollmentManager()
+    return global_manager
+
+@app.route('/')
+def index():
+    """Serve the main web interface"""
+    return render_template('index.html')
+
+@app.route('/api/new_inquiry', methods=['POST'])
+def api_new_inquiry():
+    """API endpoint for new student inquiry"""
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    email = data.get('email', '').strip()
+    phone = data.get('phone', '').strip()
+    program = data.get('program', '').strip()
+
+    if not all([name, email, phone, program]):
+        return jsonify({'error': 'All fields are required'}), 400
+
+    manager = get_manager()
+    student_id, message = manager.new_inquiry(name, email, phone, program)
+
+    return jsonify({
+        'student_id': student_id,
+        'message': message,
+        'success': True
+    })
+
+@app.route('/api/chat', methods=['POST'])
+def api_chat():
+    """API endpoint for student conversation"""
+    data = request.get_json()
+    student_id = data.get('student_id', '').strip()
+    user_message = data.get('message', '').strip()
+
+    if not student_id or not user_message:
+        return jsonify({'error': 'Student ID and message are required'}), 400
+
+    manager = get_manager()
+    response = manager.process_response(student_id, user_message)
+
+    if 'error' in response:
+        return jsonify({'error': response['error']}), 400
+
+    return jsonify({
+        'message': response['message'],
+        'qualification_score': response.get('qualification_score'),
+        'recommendation': response.get('recommendation'),
+        'action': response.get('action'),
+        'success': True
+    })
+
+@app.route('/api/followup/<student_id>', methods=['GET'])
+def api_followup(student_id):
+    """API endpoint for generating follow-up messages"""
+    manager = get_manager()
+    followup = manager.generate_followup_message(student_id)
+
+    if 'error' in followup:
+        return jsonify({'error': followup['error']}), 404
+
+    return jsonify({
+        'followup_message': followup['followup_message'],
+        'recommended_channel': followup['recommended_channel'],
+        'success': True
+    })
+
+@app.route('/api/dashboard', methods=['GET'])
+def api_dashboard():
+    """API endpoint for dashboard data"""
+    manager = get_manager()
+    dashboard = manager.get_dashboard()
+    return jsonify(dashboard)
+
+@app.route('/api/export', methods=['GET'])
+def api_export():
+    """API endpoint for exporting student data"""
+    manager = get_manager()
+    export_data = manager.export_students()
+    return jsonify(export_data)
+
+@app.route('/api/students', methods=['GET'])
+def api_students():
+    """API endpoint for getting all students"""
+    manager = get_manager()
+    students = manager.db.list_all()
+    students_data = [s.to_dict() for s in students]
+    return jsonify({'students': students_data})
+
+# ============================================================================
+# TEXT INPUT FUNCTIONS
+# ============================================================================
+
+def get_text_input(prompt_text, voice_output):
+    """Get input via text with spoken prompt"""
+    voice_output.speak(prompt_text)
+    print(f"\n{prompt_text}")
+    return input().strip()
+
+def get_text_menu_choice(voice_output):
+    """Get menu choice via text input"""
+    menu_text = "Please enter the number of your choice. 1 for new inquiry, 2 for continue conversation, 3 for follow up, 4 for dashboard, 5 for export, or 6 to exit."
+    voice_output.speak(menu_text)
+    print(f"\n{menu_text}")
+
+    while True:
+        choice = input("\nSelect option (1-6): ").strip()
+        if choice in ['1', '2', '3', '4', '5', '6']:
+            print(f"Selected: {choice}")
+            return choice
+        print("❌ Invalid choice. Please enter 1-6.")
+
+# ============================================================================
+# MAIN INTERFACE
+# ============================================================================
+
+def main():
+    """Text input with voice output enrollment management"""
+    manager = EnrollmentManager()
+
+    print("\n" + "="*60)
+    print("RTO AI ENROLLMENT & MARKETING SYSTEM")
+    print("VOICE OUTPUT + TEXT INPUT INTERFACE")
+    print("="*60 + "\n")
+
+    voice_output = VoiceOutputHandler()
+
+    # Welcome message
+    welcome_msg = "Welcome to the RTO AI Enrollment System. You can type your responses and I will speak my replies. Let's get started!"
+    voice_output.speak(welcome_msg)
+    print(f"\n{welcome_msg}\n")
+
+    while True:
+        # Text menu
+        print("\n" + "-"*60)
+        print("MENU:")
+        print("1. New Student Inquiry")
+        print("2. Continue Student Conversation")
+        print("3. Generate Follow-up Message")
+        print("4. View Dashboard")
+        print("5. Export Student Records")
+        print("6. Exit")
+        print("-"*60)
+
+        choice = get_text_menu_choice(voice_output)
+
+        if not choice:
+            continue
+        
+        if choice == "1":
+            # New Student Inquiry - text input with voice output
+            name = get_text_input("Please enter the student's name:", voice_output)
+            if not name:
+                continue
+
+            email = get_text_input("Please enter the student's email address:", voice_output)
+            if not email:
+                continue
+
+            phone = get_text_input("Please enter the student's phone number:", voice_output)
+            if not phone:
+                continue
+
+            program = get_text_input("Please enter the program of interest:", voice_output)
+            if not program:
+                continue
+            
+            student_id, message = manager.new_inquiry(name, email, phone, program)
+            print(f"\n[AGENT] {message}")
+            print(f"[Student ID: {student_id}]")
+            
+            # Speak the agent's greeting
+            voice_output.speak(message)
+            
+        elif choice == "2":
+            # Continue Student Conversation - text input with voice output
+            student_id = get_text_input("Please enter the student ID:", voice_output)
+            if not student_id:
+                continue
+
+            student = manager.db.get_student(student_id)
+            if not student:
+                error_msg = "Student not found. Please try again."
+                voice_output.speak(error_msg)
+                print(f"❌ {error_msg}")
+                continue
+
+            # Start text conversation loop
+            voice_output.speak(f"Starting conversation with {student.name}. You can type your messages now.")
+            print(f"\n💬 Text conversation with {student.name}")
+            print("Type 'exit' or 'quit' to end the conversation\n")
+
+            conversation_active = True
+            while conversation_active:
+                user_input = get_text_input("Please type your message:", voice_output)
+
+                if not user_input:
+                    continue
+
+                # Check for exit commands
+                if user_input.lower() in ['exit', 'quit', 'stop', 'end', 'done']:
+                    goodbye_msg = "Ending conversation. Thank you!"
+                    voice_output.speak(goodbye_msg)
+                    print(f"\n👋 {goodbye_msg}")
+                    conversation_active = False
+                    break
+
+                # Process response
+                response = manager.process_response(student_id, user_input)
+
+                if "error" not in response:
+                    print(f"\n[AGENT] {response['message']}")
+
+                    # Always speak the agent's response
+                    voice_output.speak(response['message'])
+
+                    if response.get("qualification_score"):
+                        score_msg = f"Qualification score: {response['qualification_score']} out of 100"
+                        print(f"[Qualification Score: {response['qualification_score']}/100]")
+                        voice_output.speak(score_msg)
+
+                    if response.get("recommendation"):
+                        print(f"[Recommendation: {response['recommendation']}]")
+                else:
+                    error_msg = response.get('error', 'Unknown error occurred')
+                    print(f"❌ {error_msg}")
+                    voice_output.speak(f"Error: {error_msg}")
+        
+        elif choice == "3":
+            # Generate Follow-up Message
+            student_id = get_text_input("Please enter the student ID for follow-up:", voice_output)
+            if not student_id:
+                continue
+            
+            followup = manager.generate_followup_message(student_id)
+            
+            if "error" not in followup:
+                print(f"\n[SUGGESTED FOLLOW-UP MESSAGE]")
+                print(f"{followup['followup_message']}")
+                print(f"[Recommended Channel: {followup['recommended_channel']}]")
+                
+                # Speak the follow-up message (combined to avoid double playback)
+                followup_voice_msg = f"Follow-up message: {followup['followup_message']}. Recommended channel: {followup['recommended_channel']}"
+                voice_output.speak(followup_voice_msg)
+            else:
+                error_msg = followup.get("error", "Unknown error")
+                print(f"❌ {error_msg}")
+                voice_output.speak(f"Error: {error_msg}")
+        
+        elif choice == "4":
+            # View Dashboard
+            dashboard = manager.get_dashboard()
+            print("\n[ENROLLMENT DASHBOARD]")
+            print(json.dumps(dashboard, indent=2))
+            
+            # Speak key metrics
+            dashboard_msg = f"Total inquiries: {dashboard['total_inquiries']}. Qualified: {dashboard['by_status']['qualified']}. Enrolled: {dashboard['by_status']['enrolled']}. Conversion rate: {dashboard['conversion_rate']:.1f} percent."
+            voice_output.speak(dashboard_msg)
+        
+        elif choice == "5":
+            # Export Student Records
+            export = manager.export_students()
+            print("\n[STUDENT EXPORT]")
+            print(json.dumps(export, indent=2))
+            
+            # Also save to file
+            with open("students_export.json", "w") as f:
+                json.dump(export, f, indent=2)
+            
+            success_msg = f"Exported {export['total_records']} student records. Saved to students_export.json"
+            print(f"✅ {success_msg}")
+            voice_output.speak(success_msg)
+        
+        elif choice == "6":
+            goodbye_msg = "Thank you for using the RTO AI Enrollment System. Goodbye!"
+            voice_output.speak(goodbye_msg)
+            print(f"\n👋 {goodbye_msg}")
+            break
+        
+        else:
+            error_msg = "Invalid option. Please try again."
+            voice_output.speak(error_msg)
+            print(f"❌ {error_msg}")
+
+def run_web_server(port=5000):
+    """Run the Flask web server"""
+    print(f"Starting web server on port {port}...")
+    print("Open http://localhost:5000 in your browser")
+    app.run(debug=True, host='0.0.0.0', port=port)
+
+if __name__ == "__main__":
+    import sys
+
+    if len(sys.argv) > 1 and sys.argv[1] == '--web':
+        # Run web server
+        port = int(sys.argv[2]) if len(sys.argv) > 2 else 5000
+        run_web_server(port)
+    else:
+        # Run CLI interface
+        main()

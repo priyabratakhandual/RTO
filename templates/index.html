@@ -1,0 +1,1515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTO AI Enrollment System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            transition: all 0.3s ease;
+        }
+        
+        body {
+            background: 
+                radial-gradient(circle at 20% 50%, rgba(0,0,0,0.03) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(0,0,0,0.03) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(0,0,0,0.02) 0%, transparent 50%),
+                linear-gradient(135deg, #fafafa 0%, #f0f0f0 50%, #fafafa 100%);
+            background-attachment: fixed;
+            min-height: 100vh;
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            color: #1a1a1a;
+            line-height: 1.6;
+            position: relative;
+        }
+        
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(0,0,0,0.02) 35px, rgba(0,0,0,0.02) 70px),
+                repeating-linear-gradient(-45deg, transparent, transparent 35px, rgba(0,0,0,0.015) 35px, rgba(0,0,0,0.015) 70px);
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .container-fluid {
+            position: relative;
+            z-index: 1;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 
+                0 8px 32px rgba(0,0,0,0.1),
+                0 2px 8px rgba(0,0,0,0.06),
+                inset 0 1px 0 rgba(255,255,255,0.9);
+            background: linear-gradient(135deg, #ffffff 0%, #fafafa 100%);
+            overflow: hidden;
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+            position: relative;
+            backdrop-filter: blur(10px);
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, #000000, transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .card:hover::before {
+            opacity: 1;
+        }
+        
+        .card:hover {
+            transform: translateY(-8px) scale(1.01);
+            box-shadow: 
+                0 16px 48px rgba(0,0,0,0.15),
+                0 4px 12px rgba(0,0,0,0.1),
+                inset 0 1px 0 rgba(255,255,255,0.9);
+        }
+        
+        .card-body {
+            padding: 2rem;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+            border: none;
+            border-radius: 10px;
+            color: #ffffff;
+            padding: 12px 28px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, #1a1a1a 0%, #333333 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+            color: #ffffff;
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .btn-outline-primary, .btn-outline-dark {
+            border: 2px solid #000000;
+            border-radius: 10px;
+            color: #000000;
+            padding: 10px 24px;
+            font-weight: 600;
+            background: transparent;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-outline-primary:hover, .btn-outline-dark:hover {
+            background: #000000;
+            border-color: #000000;
+            color: #ffffff;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 0.875rem;
+            border-radius: 8px;
+        }
+        
+        .btn-lg {
+            padding: 14px 32px;
+            font-size: 1.1rem;
+            border-radius: 12px;
+        }
+        
+        .chat-messages {
+            max-height: none;
+            height: auto;
+            min-height: 60px;
+            overflow-y: auto;
+            border: 2px solid #e8e8e8;
+            border-radius: 16px;
+            padding: 16px;
+            background: linear-gradient(135deg, #fafafa 0%, #ffffff 100%);
+            scroll-behavior: smooth;
+            box-shadow: inset 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            transition: max-height 0.3s ease;
+        }
+        
+        /* Fallback for browsers without :has() support */
+        @supports selector(:has(*)) {
+            .chat-messages:has(.message:nth-child(5)) {
+                max-height: 60vh;
+            }
+        }
+        
+        .chat-messages::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #000000;
+            border-radius: 10px;
+        }
+        
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #333333;
+        }
+        
+        .message {
+            margin-bottom: 0;
+            padding: 10px 14px;
+            border-radius: 12px;
+            max-width: 75%;
+            font-size: 15px;
+            line-height: 1.4;
+            animation: fadeInUp 0.4s ease;
+            word-wrap: break-word;
+            width: fit-content;
+            align-self: flex-start;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .message.user {
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+            color: white;
+            margin-left: auto;
+            margin-right: 0;
+            text-align: right;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            align-self: flex-end;
+        }
+        
+        .message.agent {
+            background: #ffffff;
+            border: 2px solid #e8e8e8;
+            color: #1a1a1a;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .stats-card {
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%);
+            color: white;
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 
+                0 10px 40px rgba(0,0,0,0.25),
+                0 4px 12px rgba(0,0,0,0.15),
+                inset 0 1px 0 rgba(255,255,255,0.1);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stats-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            animation: shimmer 3s ease-in-out infinite;
+        }
+        
+        @keyframes shimmer {
+            0%, 100% { transform: translate(-50%, -50%) rotate(0deg); opacity: 0; }
+            50% { transform: translate(-50%, -50%) rotate(180deg); opacity: 1; }
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-8px) scale(1.03);
+            box-shadow: 
+                0 16px 50px rgba(0,0,0,0.35),
+                0 6px 16px rgba(0,0,0,0.2),
+                inset 0 1px 0 rgba(255,255,255,0.15);
+        }
+        
+        .stats-card i {
+            opacity: 0.9;
+            margin-bottom: 1rem;
+        }
+        
+        .stats-card h3 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 0.5rem 0;
+        }
+        
+        .form-control {
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 15px;
+            border: 2px solid #e8e8e8;
+            transition: all 0.3s ease;
+            background: #ffffff;
+        }
+        
+        .form-control:focus {
+            border-color: #000000;
+            box-shadow: 0 0 0 0.25rem rgba(0,0,0,0.15);
+            background: #ffffff;
+            outline: none;
+        }
+        
+        .form-control:hover {
+            border-color: #cccccc;
+        }
+        
+        .form-label {
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 8px;
+            font-size: 14px;
+            letter-spacing: 0.3px;
+        }
+        
+        .nav-tabs {
+            border-bottom: 4px solid #e8e8e8;
+            margin-bottom: 2rem;
+            background: rgba(255,255,255,0.5);
+            padding: 10px;
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .nav-tabs .nav-link {
+            border: none;
+            border-radius: 12px;
+            color: #666666;
+            background: transparent;
+            padding: 14px 24px;
+            font-weight: 600;
+            margin-right: 6px;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .nav-tabs .nav-link::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.1);
+            transform: translate(-50%, -50%);
+            transition: width 0.4s ease, height 0.4s ease;
+        }
+        
+        .nav-tabs .nav-link:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            color: #000000;
+            background: rgba(245,245,245,0.8);
+            transform: translateY(-2px);
+        }
+        
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+            color: white;
+            border-color: #000000;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            transform: translateY(-2px);
+        }
+        
+        .nav-tabs .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -18px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid #000000;
+        }
+        
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 24px;
+            animation: fadeInDown 0.6s ease;
+        }
+        
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .logo-container img {
+            max-height: 140px;
+            max-width: 350px;
+            height: auto;
+            width: auto;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.1));
+            transition: transform 0.3s ease;
+        }
+        
+        .logo-container img:hover {
+            transform: scale(1.05);
+        }
+        
+        .header-section {
+            border-bottom: 4px solid #000000;
+            padding-bottom: 30px;
+            margin-bottom: 40px;
+            background: 
+                linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(250,250,250,0.95) 100%),
+                radial-gradient(circle at 50% 0%, rgba(0,0,0,0.05) 0%, transparent 70%);
+            padding: 50px 20px 35px;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 
+                0 10px 40px rgba(0,0,0,0.08),
+                inset 0 -1px 0 rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header-section::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0,0,0,0.03) 0%, transparent 70%);
+            animation: rotate 20s linear infinite;
+            pointer-events: none;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .card-title {
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 1.5rem;
+            font-size: 1.5rem;
+        }
+        
+        .card-title i {
+            margin-right: 10px;
+            color: #000000;
+        }
+        
+        .table {
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        .table thead {
+            background: linear-gradient(135deg, #000000 0%, #1a1a1a 100%);
+            color: white;
+        }
+        
+        .table thead th {
+            border: none;
+            padding: 16px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+        
+        .table tbody tr {
+            transition: background 0.2s ease;
+        }
+        
+        .table tbody tr:hover {
+            background: #f8f8f8;
+        }
+        
+        .badge {
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.75rem;
+            letter-spacing: 0.3px;
+        }
+        
+        .alert {
+            border-radius: 12px;
+            border: none;
+            padding: 1.25rem 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        
+        .alert-success {
+            background: linear-gradient(135deg, #f0f9f4 0%, #e8f5e9 100%);
+            color: #1b5e20;
+            border-left: 4px solid #4caf50;
+        }
+        
+        .input-group {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .input-group .form-control {
+            border-right: none;
+        }
+        
+        .input-group .btn {
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+        }
+        
+        #chatInput {
+            font-size: 15px !important;
+            padding: 8px 12px !important;
+            height: 44px !important;
+            line-height: 1.5 !important;
+            width: auto !important;
+            min-width: 120px !important;
+            max-width: 400px !important;
+            display: inline-block !important;
+        }
+        
+        #sendMessage {
+            font-size: 14px !important;
+            padding: 8px 16px !important;
+            height: 44px !important;
+            line-height: 1.5 !important;
+        }
+        
+        #chatInput::placeholder {
+            font-size: 15px;
+            color: #999;
+        }
+        
+        /* Auto-resize input based on content */
+        #chatInput {
+            box-sizing: border-box;
+        }
+        
+        /* Make input group inline and compact */
+        #chatInterface .input-group {
+            display: inline-flex !important;
+            width: auto !important;
+            flex-wrap: nowrap;
+            justify-content: flex-start;
+        }
+        
+        /* Ensure input resizes smoothly */
+        #chatInput {
+            transition: width 0.2s ease;
+        }
+        
+        .tab-content {
+            animation: fadeIn 0.4s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .bg-light {
+            background: #f8f8f8 !important;
+            border-radius: 12px;
+            padding: 2rem;
+        }
+        
+        .text-muted {
+            color: #666666 !important;
+        }
+        
+        .container-fluid {
+            padding: 2rem 1rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .row {
+            position: relative;
+            z-index: 1;
+        }
+        
+        @media (max-width: 768px) {
+            .card-body {
+                padding: 1.5rem;
+            }
+            
+            .stats-card {
+                padding: 1.5rem;
+            }
+            
+            .nav-tabs .nav-link {
+                padding: 10px 16px;
+                font-size: 0.9rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="text-center header-section">
+                    <div class="logo-container">
+                        <img src="{{ url_for('static', filename='logo.png') }}" alt="Logo">
+                    </div>
+                    <h1 class="display-4 text-dark mb-3" style="font-weight: 700; letter-spacing: -1px; font-size: 2.75rem;">
+                        RTO AI Enrollment System
+                    </h1>
+                    <p class="lead text-muted" style="font-size: 1.15rem; font-weight: 400;">Intelligent Student Enrollment & Marketing Automation</p>
+                </div>
+
+                <ul class="nav nav-tabs justify-content-center mb-4" id="mainTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="inquiry-tab" data-bs-toggle="tab" data-bs-target="#inquiry" type="button" role="tab">
+                            <i class="fas fa-user-plus"></i> New Inquiry
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="chat-tab" data-bs-toggle="tab" data-bs-target="#chat" type="button" role="tab">
+                            <i class="fas fa-comments"></i> Chat
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="scholarship-tab" data-bs-toggle="tab" data-bs-target="#scholarship" type="button" role="tab">
+                            <i class="fas fa-graduation-cap"></i> Scholarships
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button" role="tab">
+                            <i class="fas fa-chart-line"></i> Dashboard
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="students-tab" data-bs-toggle="tab" data-bs-target="#students" type="button" role="tab">
+                            <i class="fas fa-users"></i> Students
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content" id="mainTabsContent">
+                    <!-- New Inquiry Tab -->
+                    <div class="tab-pane fade show active" id="inquiry" role="tabpanel">
+                        <div class="card">
+                            <div class="card-body p-5">
+                                <h3 class="card-title mb-4">
+                                    <i class="fas fa-user-plus text-primary"></i> Create New Student Inquiry
+                                </h3>
+                                <form id="inquiryForm">
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Student Name</label>
+                                            <input type="text" class="form-control" id="studentName" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Email Address</label>
+                                            <input type="email" class="form-control" id="studentEmail" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Phone Number</label>
+                                            <input type="tel" class="form-control" id="studentPhone" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label fw-bold">Program Interest</label>
+                                            <select class="form-control" id="studentProgram" required>
+                                                <option value="">Select Program</option>
+                                                <option value="Arts, Humanities & Social Sciences">Arts, Humanities & Social Sciences</option>
+                                                <option value="Aviation">Aviation</option>
+                                                <option value="Business">Business</option>
+                                                <option value="Engineering">Engineering</option>
+                                                <option value="Design, ICT, Health, Science, Psychology, etc.">Design, ICT, Health, Science, Psychology, etc.</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="text-center mt-4">
+                                        <button type="submit" class="btn btn-primary btn-lg">
+                                            <i class="fas fa-plus-circle"></i> Create Inquiry
+                                        </button>
+                                    </div>
+                                </form>
+                                <div id="inquiryResult" class="mt-4" style="display: none;">
+                                    <div class="alert alert-success">
+                                        <h5><i class="fas fa-check-circle"></i> Success!</h5>
+                                        <p id="inquiryMessage"></p>
+                                        <p><strong>Student ID:</strong> <span id="studentId"></span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chat Tab -->
+                    <div class="tab-pane fade" id="chat" role="tabpanel">
+                        <div class="card">
+                            <div class="card-body p-4">
+                                <h3 class="card-title mb-4">
+                                    <i class="fas fa-comments text-primary"></i> Student Conversation
+                                </h3>
+
+                                <!-- Student Selection -->
+                                <div class="mb-4">
+                                    <label class="form-label fw-bold">Select Student ID</label>
+                                    <select class="form-control" id="chatStudentId">
+                                        <option value="">Choose a student...</option>
+                                    </select>
+                                    <small class="text-muted">Students are loaded from the system</small>
+                                </div>
+
+                                <!-- Chat Interface -->
+                                <div id="chatInterface" style="display: none;">
+                                    <div class="chat-messages mb-3" id="chatMessages" style="min-height: auto;">
+                                        <!-- Messages will appear here -->
+                                    </div>
+
+                                    <div class="input-group" style="display: inline-flex; width: auto; max-width: 100%;">
+                                        <input type="text" class="form-control" id="chatInput" placeholder="Type..." disabled style="font-size: 15px; padding: 8px 12px; height: 44px; line-height: 1.5; border-radius: 12px; width: auto; min-width: 120px; max-width: 400px;">
+                                        <button class="btn btn-primary" type="button" id="sendMessage" disabled style="font-size: 14px; padding: 8px 16px; height: 44px; line-height: 1.5; border-radius: 0 12px 12px 0;">
+                                            <i class="fas fa-paper-plane"></i> Send
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scholarship Tab -->
+                    <div class="tab-pane fade" id="scholarship" role="tabpanel">
+                        <div class="card">
+                            <div class="card-body p-5">
+                                <h3 class="card-title mb-4">
+                                    <i class="fas fa-graduation-cap text-primary"></i> Scholarship Opportunities
+                                </h3>
+
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <div class="card h-100">
+                                            <div class="card-header" style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%); color: white; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                                                <h5 class="card-title mb-0" style="font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                                                    <i class="fas fa-award"></i> Merit-Based Scholarships
+                                                </h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <h6>Academic Excellence Scholarship</h6>
+                                                <p class="text-muted">For students with outstanding academic records</p>
+                                                <ul class="list-unstyled">
+                                                    <li><strong>Value:</strong> Up to $5,000</li>
+                                                    <li><strong>Eligibility:</strong> GPA 3.5+ or equivalent</li>
+                                                    <li><strong>Application:</strong> Automatic consideration</li>
+                                                </ul>
+
+                                                <h6 class="mt-3">Leadership Scholarship</h6>
+                                                <p class="text-muted">For students with demonstrated leadership skills</p>
+                                                <ul class="list-unstyled">
+                                                    <li><strong>Value:</strong> Up to $3,000</li>
+                                                    <li><strong>Eligibility:</strong> Leadership experience required</li>
+                                                    <li><strong>Application:</strong> Submit leadership essay</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header" style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%); color: white; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                                                <h5 class="card-title mb-0" style="font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                                                    <i class="fas fa-users"></i> Diversity & Inclusion Scholarships
+                                                </h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <h6>Indigenous Scholarship</h6>
+                                                <p class="text-muted">Supporting Indigenous Australian students</p>
+                                                <ul class="list-unstyled">
+                                                    <li><strong>Value:</strong> Up to $10,000</li>
+                                                    <li><strong>Eligibility:</strong> Indigenous background</li>
+                                                    <li><strong>Application:</strong> Confirmation of Aboriginal/Torres Strait Islander heritage</li>
+                                                </ul>
+
+                                                <h6 class="mt-3">Women in STEM Scholarship</h6>
+                                                <p class="text-muted">For women pursuing STEM fields</p>
+                                                <ul class="list-unstyled">
+                                                    <li><strong>Value:</strong> Up to $8,000</li>
+                                                    <li><strong>Eligibility:</strong> Female students in STEM programs</li>
+                                                    <li><strong>Application:</strong> Personal statement required</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header" style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%); color: white; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                                                <h5 class="card-title mb-0" style="font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                                                    <i class="fas fa-hand-holding-heart"></i> Need-Based Scholarships
+                                                </h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <h6>Financial Hardship Scholarship</h6>
+                                                <p class="text-muted">For students facing financial difficulties</p>
+                                                <ul class="list-unstyled">
+                                                    <li><strong>Value:</strong> Up to $7,000</li>
+                                                    <li><strong>Eligibility:</strong> Demonstrated financial need</li>
+                                                    <li><strong>Application:</strong> Income documentation required</li>
+                                                </ul>
+
+                                                <h6 class="mt-3">Regional Scholarship</h6>
+                                                <p class="text-muted">For students from regional/remote areas</p>
+                                                <ul class="list-unstyled">
+                                                    <li><strong>Value:</strong> Up to $6,000</li>
+                                                    <li><strong>Eligibility:</strong> Regional/remote residence</li>
+                                                    <li><strong>Application:</strong> Address verification required</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="card">
+                                            <div class="card-header" style="background: linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #000000 100%); color: white; border: none; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+                                                <h5 class="card-title mb-0" style="font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
+                                                    <i class="fas fa-star"></i> Program-Specific Scholarships
+                                                </h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <h6>Aviation Excellence Scholarship</h6>
+                                                <p class="text-muted">For exceptional aviation students</p>
+                                                <ul class="list-unstyled">
+                                                    <li><strong>Value:</strong> Up to $12,000</li>
+                                                    <li><strong>Eligibility:</strong> Aviation program enrollment</li>
+                                                    <li><strong>Application:</strong> Aviation industry recommendation</li>
+                                                </ul>
+
+                                                <h6 class="mt-3">Engineering Innovation Scholarship</h6>
+                                                <p class="text-muted">For engineering students with innovative projects</p>
+                                                <ul class="list-unstyled">
+                                                    <li><strong>Value:</strong> Up to $10,000</li>
+                                                    <li><strong>Eligibility:</strong> Engineering program enrollment</li>
+                                                    <li><strong>Application:</strong> Project portfolio required</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 p-4 bg-light rounded">
+                                    <h5 class="mb-3">
+                                        <i class="fas fa-clipboard-list"></i> How to Apply for Scholarships
+                                    </h5>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Step 1: Check Eligibility</h6>
+                                            <p>Review the requirements for each scholarship you're interested in.</p>
+
+                                            <h6>Step 2: Gather Documents</h6>
+                                            <p>Prepare academic transcripts, reference letters, and supporting documents.</p>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Step 3: Submit Application</h6>
+                                            <p>Complete the online application form and upload required documents.</p>
+
+                                            <h6>Step 4: Await Decision</h6>
+                                            <p>Scholarship decisions are typically made within 4-6 weeks.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="text-center mt-4">
+                                    <button class="btn btn-primary btn-lg" onclick="applyForScholarship()">
+                                        <i class="fas fa-paper-plane"></i> Apply for Scholarship
+                                    </button>
+                                    <button class="btn btn-outline-primary btn-lg ms-2" onclick="contactScholarshipOffice()">
+                                        <i class="fas fa-phone"></i> Contact Scholarship Office
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Tab -->
+                    <div class="tab-pane fade" id="dashboard" role="tabpanel">
+                        <div class="row g-4">
+                            <div class="col-md-3">
+                                <div class="card stats-card text-white">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-users fa-2x mb-2"></i>
+                                        <h3 id="totalInquiries">0</h3>
+                                        <p class="mb-0">Total Inquiries</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card stats-card text-white">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-user-check fa-2x mb-2"></i>
+                                        <h3 id="qualifiedStudents">0</h3>
+                                        <p class="mb-0">Qualified</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card stats-card text-white">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-graduation-cap fa-2x mb-2"></i>
+                                        <h3 id="enrolledStudents">0</h3>
+                                        <p class="mb-0">Enrolled</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="card stats-card text-white">
+                                    <div class="card-body text-center">
+                                        <i class="fas fa-percentage fa-2x mb-2"></i>
+                                        <h3 id="conversionRate">0%</h3>
+                                        <p class="mb-0">Conversion Rate</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card mt-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Student Status Breakdown</h5>
+                                <div class="row text-center">
+                                    <div class="col-md-2">
+                                        <div class="p-3 bg-light rounded">
+                                            <h4 id="inquiryCount">0</h4>
+                                            <small class="text-muted">Inquiry</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="p-3 bg-light rounded">
+                                            <h4 id="followUp1Count">0</h4>
+                                            <small class="text-muted">Follow-up 1</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="p-3 bg-light rounded">
+                                            <h4 id="followUp2Count">0</h4>
+                                            <small class="text-muted">Follow-up 2</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="p-3 bg-success rounded text-white">
+                                            <h4 id="qualifiedCount">0</h4>
+                                            <small>Qualified</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="p-3 bg-primary rounded text-white">
+                                            <h4 id="enrolledCount">0</h4>
+                                            <small>Enrolled</small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="p-3 bg-secondary rounded text-white">
+                                            <h4 id="rejectedCount">0</h4>
+                                            <small>Rejected</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Students Tab -->
+                    <div class="tab-pane fade" id="students" role="tabpanel">
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-4">
+                                    <h3 class="card-title">
+                                        <i class="fas fa-users text-primary"></i> Student Records
+                                    </h3>
+                                    <button class="btn btn-success" onclick="exportStudents()">
+                                        <i class="fas fa-download"></i> Export Data
+                                    </button>
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="studentsTable">
+                                        <thead>
+                                            <tr>
+                                                <th>ID</th>
+                                                <th>Name</th>
+                                                <th>Email</th>
+                                                <th>Phone</th>
+                                                <th>Program</th>
+                                                <th>Status</th>
+                                                <th>Qualification</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="studentsTableBody">
+                                            <!-- Student rows will be populated here -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JavaScript -->
+    <script>
+        let currentStudentId = null;
+        let speechSynthesis = null;
+        let voiceSettings = {
+            enabled: true,
+            rate: 1.0,
+            pitch: 1.0,
+            volume: 0.8
+        };
+
+        // Initialize Web Speech API
+        function initSpeechSynthesis() {
+            if ('speechSynthesis' in window) {
+                speechSynthesis = window.speechSynthesis;
+
+                // Get available voices and select a female voice if available
+                speechSynthesis.onvoiceschanged = function() {
+                    const voices = speechSynthesis.getVoices();
+                    let selectedVoice = null;
+
+                    // Try to find a female voice
+                    for (let voice of voices) {
+                        if (voice.name.toLowerCase().includes('female') ||
+                            voice.name.toLowerCase().includes('zira') ||
+                            voice.name.toLowerCase().includes('hazel') ||
+                            voice.name.toLowerCase().includes('samantha')) {
+                            selectedVoice = voice;
+                            break;
+                        }
+                    }
+
+                    // If no specific female voice, try the second voice (often female)
+                    if (!selectedVoice && voices.length > 1) {
+                        selectedVoice = voices[1];
+                    }
+
+                    // Store selected voice
+                    if (selectedVoice) {
+                        voiceSettings.selectedVoice = selectedVoice;
+                        console.log('Voice selected:', selectedVoice.name);
+                    }
+                };
+
+                // Trigger voice loading
+                speechSynthesis.getVoices();
+            } else {
+                console.warn('Web Speech API not supported in this browser');
+                voiceSettings.enabled = false;
+            }
+        }
+
+        // Speak text using Web Speech API
+        function speakText(text) {
+            if (!voiceSettings.enabled || !speechSynthesis) {
+                console.log('Voice output disabled or not supported');
+                return;
+            }
+
+            // Cancel any ongoing speech
+            speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+
+            // Apply voice settings
+            if (voiceSettings.selectedVoice) {
+                utterance.voice = voiceSettings.selectedVoice;
+            }
+            utterance.rate = voiceSettings.rate;
+            utterance.pitch = voiceSettings.pitch;
+            utterance.volume = voiceSettings.volume;
+
+            // Add visual feedback
+            showSpeakingIndicator(true);
+
+            // Handle speech end
+            utterance.onend = function() {
+                showSpeakingIndicator(false);
+            };
+
+            utterance.onerror = function() {
+                showSpeakingIndicator(false);
+            };
+
+            // Speak the text
+            speechSynthesis.speak(utterance);
+
+            console.log('Speaking:', text.substring(0, 50) + (text.length > 50 ? '...' : ''));
+        }
+
+        // Show/hide speaking indicator
+        function showSpeakingIndicator(show) {
+            let indicator = document.getElementById('speakingIndicator');
+
+            if (show) {
+                if (!indicator) {
+                    // Create indicator
+                    indicator = document.createElement('div');
+                    indicator.id = 'speakingIndicator';
+                    indicator.innerHTML = `
+                        <div class="alert alert-dark position-fixed" style="top: 20px; right: 20px; z-index: 9999; min-width: 250px; background: #000000; color: white; border: 1px solid #000000;">
+                            <i class="fas fa-volume-up"></i> Speaking...
+                            <div class="spinner-border spinner-border-sm ms-2" role="status" style="color: white;">
+                                <span class="visually-hidden">Speaking...</span>
+                            </div>
+                        </div>
+                    `;
+                    document.body.appendChild(indicator);
+                }
+                indicator.style.display = 'block';
+
+                // Auto-hide after 10 seconds as fallback
+                setTimeout(() => {
+                    if (indicator) {
+                        indicator.style.display = 'none';
+                    }
+                }, 10000);
+            } else {
+                if (indicator) {
+                    indicator.style.display = 'none';
+                }
+            }
+        }
+
+        // Toggle voice output
+        function toggleVoice() {
+            voiceSettings.enabled = !voiceSettings.enabled;
+            const voiceBtn = document.getElementById('voiceToggle');
+            if (voiceBtn) {
+                voiceBtn.innerHTML = voiceSettings.enabled ?
+                    '<i class="fas fa-volume-up"></i> Voice: ON' :
+                    '<i class="fas fa-volume-mute"></i> Voice: OFF';
+                voiceBtn.className = voiceSettings.enabled ? 'btn btn-dark' : 'btn btn-outline-dark';
+            }
+
+            if (voiceSettings.enabled) {
+                speakText('Voice output enabled');
+            }
+        }
+
+        // Load students on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initSpeechSynthesis();
+            loadStudents();
+            loadDashboard();
+
+            // Set up form submissions
+            document.getElementById('inquiryForm').addEventListener('submit', handleNewInquiry);
+            document.getElementById('chatStudentId').addEventListener('change', handleStudentSelection);
+            document.getElementById('sendMessage').addEventListener('click', sendMessage);
+            // Auto-resize input to match text length
+            const chatInput = document.getElementById('chatInput');
+            const resizeInput = function() {
+                const input = chatInput;
+                // Create a temporary span to measure text width
+                const temp = document.createElement('span');
+                temp.style.visibility = 'hidden';
+                temp.style.position = 'absolute';
+                temp.style.fontSize = window.getComputedStyle(input).fontSize;
+                temp.style.fontFamily = window.getComputedStyle(input).fontFamily;
+                temp.style.padding = window.getComputedStyle(input).padding;
+                temp.style.border = window.getComputedStyle(input).border;
+                temp.textContent = input.value || input.placeholder;
+                document.body.appendChild(temp);
+                
+                const width = Math.max(120, Math.min(400, temp.offsetWidth + 30));
+                input.style.width = width + 'px';
+                document.body.removeChild(temp);
+            };
+            
+            chatInput.addEventListener('input', resizeInput);
+            chatInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                } else {
+                    setTimeout(resizeInput, 0);
+                }
+            });
+            
+            // Initial resize
+            setTimeout(resizeInput, 100);
+
+            // Add voice toggle button after a short delay to ensure DOM is ready
+            setTimeout(() => {
+                addVoiceToggle();
+
+                // Speak welcome message after a delay to ensure voice is ready
+                setTimeout(() => {
+                    if (voiceSettings.enabled) {
+                        speakText('Welcome to the RTO AI Enrollment System. You can now interact with our AI assistant using voice output.');
+                    }
+                }, 2000);
+            }, 1000);
+        });
+
+        function addVoiceToggle() {
+            // Find a good place to add the voice toggle button
+            const header = document.querySelector('h1.display-4');
+            if (header) {
+                const voiceBtn = document.createElement('button');
+                voiceBtn.id = 'voiceToggle';
+                voiceBtn.className = 'btn btn-dark ms-3';
+                voiceBtn.onclick = toggleVoice;
+                voiceBtn.innerHTML = '<i class="fas fa-volume-up"></i> Voice: ON';
+
+                header.appendChild(voiceBtn);
+            }
+        }
+
+        async function loadStudents() {
+            try {
+                const response = await fetch('/api/students');
+                const data = await response.json();
+
+                const select = document.getElementById('chatStudentId');
+                const tbody = document.getElementById('studentsTableBody');
+
+                // Clear existing options (except first)
+                select.innerHTML = '<option value="">Choose a student...</option>';
+                tbody.innerHTML = '';
+
+                data.students.forEach(student => {
+                    // Add to select dropdown
+                    const option = document.createElement('option');
+                    option.value = student.id;
+                    option.textContent = `${student.id} - ${student.name} (${student.status})`;
+                    select.appendChild(option);
+
+                    // Add to table
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${student.id}</td>
+                        <td>${student.name}</td>
+                        <td>${student.email}</td>
+                        <td>${student.phone}</td>
+                        <td>${student.program}</td>
+                        <td><span class="badge bg-${getStatusColor(student.status)}">${student.status}</span></td>
+                        <td>${student.qualification_score}/100</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="startChat('${student.id}')">
+                                <i class="fas fa-comments"></i> Chat
+                            </button>
+                            <button class="btn btn-sm btn-outline-info" onclick="getFollowup('${student.id}')">
+                                <i class="fas fa-envelope"></i> Follow-up
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error loading students:', error);
+            }
+        }
+
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/api/dashboard');
+                const data = await response.json();
+
+                document.getElementById('totalInquiries').textContent = data.total_inquiries;
+                document.getElementById('qualifiedStudents').textContent = data.by_status.qualified;
+                document.getElementById('enrolledStudents').textContent = data.by_status.enrolled;
+                document.getElementById('conversionRate').textContent = data.conversion_rate.toFixed(1) + '%';
+
+                document.getElementById('inquiryCount').textContent = data.by_status.inquiry;
+                document.getElementById('followUp1Count').textContent = data.by_status.follow_up_1;
+                document.getElementById('followUp2Count').textContent = data.by_status.follow_up_2;
+                document.getElementById('qualifiedCount').textContent = data.by_status.qualified;
+                document.getElementById('enrolledCount').textContent = data.by_status.enrolled;
+                document.getElementById('rejectedCount').textContent = data.by_status.rejected;
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'inquiry': 'primary',
+                'follow_up_1': 'warning',
+                'follow_up_2': 'warning',
+                'qualified': 'success',
+                'enrolled': 'info',
+                'rejected': 'secondary'
+            };
+            return colors[status] || 'secondary';
+        }
+
+        async function handleNewInquiry(e) {
+            e.preventDefault();
+
+            const formData = {
+                name: document.getElementById('studentName').value,
+                email: document.getElementById('studentEmail').value,
+                phone: document.getElementById('studentPhone').value,
+                program: document.getElementById('studentProgram').value
+            };
+
+            try {
+                const response = await fetch('/api/new_inquiry', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('inquiryMessage').textContent = result.message;
+                    document.getElementById('studentId').textContent = result.student_id;
+                    document.getElementById('inquiryResult').style.display = 'block';
+
+                    // Speak the agent's response
+                    speakText(result.message);
+
+                    // Refresh students and dashboard
+                    loadStudents();
+                    loadDashboard();
+
+                    // Clear form
+                    document.getElementById('inquiryForm').reset();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error creating inquiry:', error);
+                alert('Error creating inquiry. Please try again.');
+            }
+        }
+
+        function handleStudentSelection() {
+            const studentId = document.getElementById('chatStudentId').value;
+            if (studentId) {
+                startChat(studentId);
+            } else {
+                document.getElementById('chatInterface').style.display = 'none';
+            }
+        }
+
+        function startChat(studentId) {
+            currentStudentId = studentId;
+            document.getElementById('chatMessages').innerHTML = '';
+            document.getElementById('chatInterface').style.display = 'block';
+            document.getElementById('chatInput').disabled = false;
+            document.getElementById('sendMessage').disabled = false;
+            document.getElementById('chatInput').focus();
+
+            // Switch to chat tab
+            const chatTab = new bootstrap.Tab(document.getElementById('chat-tab'));
+            chatTab.show();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const message = input.value.trim();
+
+            if (!message || !currentStudentId) return;
+
+            // Add user message to chat
+            addMessage(message, 'user');
+            input.value = '';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        student_id: currentStudentId,
+                        message: message
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    // Add agent response to chat
+                    addMessage(result.message, 'agent');
+
+                    // Speak the agent's response
+                    speakText(result.message);
+
+                    // Update qualification score if present
+                    if (result.qualification_score) {
+                        const scoreMsg = `Qualification Score: ${result.qualification_score}/100`;
+                        addMessage(scoreMsg, 'system');
+                        speakText(scoreMsg);
+                    }
+
+                    // Refresh dashboard
+                    loadDashboard();
+                    loadStudents();
+                } else {
+                    addMessage('Error: ' + result.error, 'system');
+                }
+            } catch (error) {
+                console.error('Error sending message:', error);
+                addMessage('Error sending message. Please try again.', 'system');
+            }
+        }
+
+        function addMessage(text, type) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            if (type === 'system') {
+                messageDiv.innerHTML = `<i class="fas fa-info-circle"></i> ${text}`;
+                messageDiv.style.background = '#fff3cd';
+                messageDiv.style.color = '#856404';
+            } else {
+                messageDiv.textContent = text;
+            }
+
+            messagesDiv.appendChild(messageDiv);
+            
+            // Auto-scroll to bottom and adjust height dynamically
+            setTimeout(() => {
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                // Dynamically adjust max-height if content is large
+                const contentHeight = messagesDiv.scrollHeight;
+                if (contentHeight > window.innerHeight * 0.6) {
+                    messagesDiv.style.maxHeight = '60vh';
+                } else {
+                    messagesDiv.style.maxHeight = 'none';
+                }
+            }, 10);
+        }
+
+        async function getFollowup(studentId) {
+            try {
+                const response = await fetch(`/api/followup/${studentId}`);
+                const result = await response.json();
+
+                if (response.ok) {
+                    const followupText = `Follow-up Message: ${result.followup_message}. Recommended Channel: ${result.recommended_channel}`;
+                    alert(followupText);
+
+                    // Speak the follow-up information
+                    speakText(followupText);
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error getting follow-up:', error);
+                alert('Error getting follow-up. Please try again.');
+            }
+        }
+
+        async function exportStudents() {
+            try {
+                const response = await fetch('/api/export');
+                const data = await response.json();
+
+                // Create and download JSON file
+                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'students_export.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // Speak success message
+                const successMsg = `Successfully exported ${data.total_records} student records`;
+                speakText(successMsg);
+            } catch (error) {
+                console.error('Error exporting students:', error);
+                alert('Error exporting students. Please try again.');
+            }
+        }
+
+        // Scholarship functions
+        function applyForScholarship() {
+            const scholarshipTypes = [
+                'Academic Excellence Scholarship',
+                'Leadership Scholarship',
+                'Indigenous Scholarship',
+                'Women in STEM Scholarship',
+                'Financial Hardship Scholarship',
+                'Regional Scholarship',
+                'Aviation Excellence Scholarship',
+                'Engineering Innovation Scholarship'
+            ];
+
+            let scholarshipOptions = 'Select a scholarship to apply for:\n\n';
+            scholarshipTypes.forEach((type, index) => {
+                scholarshipOptions += `${index + 1}. ${type}\n`;
+            });
+
+            const selection = prompt(scholarshipOptions + '\nEnter the number of your choice (1-8):');
+
+            if (selection && selection >= 1 && selection <= 8) {
+                const selectedScholarship = scholarshipTypes[selection - 1];
+                speakText(`You selected: ${selectedScholarship}. Opening scholarship application form.`);
+                alert(`🎓 Scholarship Application Started!\n\nScholarship: ${selectedScholarship}\n\nPlease visit our scholarship portal at: https://scholarships.rto.edu.au\n\nOr contact the scholarship office at scholarships@rto.edu.au`);
+            } else if (selection !== null) {
+                speakText('Invalid selection. Please try again.');
+                alert('❌ Invalid selection. Please enter a number between 1-8.');
+            }
+        }
+
+        function contactScholarshipOffice() {
+            speakText('Contacting scholarship office. Opening contact information.');
+            alert(`📞 Scholarship Office Contact Information:\n\n📧 Email: scholarships@rto.edu.au\n📱 Phone: 1800-SCHOLAR (1800-724-2567)\n🌐 Website: https://scholarships.rto.edu.au\n\n📍 Office Hours:\n   Monday-Friday: 9:00 AM - 5:00 PM AEST\n   Saturday: 10:00 AM - 2:00 PM AEST\n\n💬 Live Chat: Available on our website during office hours`);
+        }
+    </script>
+</body>
+</html>
