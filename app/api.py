@@ -35,7 +35,7 @@ def rto_home():
     """Route to home screen - redirects to main page"""
     return redirect(url_for('index'))
 
-@app.route('/rto/api/new_inquiry', methods=['POST'])
+@app.route('/api/new_inquiry', methods=['POST'])
 def api_new_inquiry():
     """API endpoint for new student inquiry"""
     data = request.get_json()
@@ -56,7 +56,7 @@ def api_new_inquiry():
         'success': True
     })
 
-@app.route('/rto/api/chat', methods=['POST'])
+@app.route('/api/chat', methods=['POST'])
 def api_chat():
     """API endpoint for student conversation"""
     data = request.get_json()
@@ -80,7 +80,7 @@ def api_chat():
         'success': True
     })
 
-@app.route('/rto/api/followup/<student_id>', methods=['GET'])
+@app.route('/api/followup/<student_id>', methods=['GET'])
 def api_followup(student_id):
     """API endpoint for generating follow-up messages"""
     manager = get_manager()
@@ -95,21 +95,21 @@ def api_followup(student_id):
         'success': True
     })
 
-@app.route('/rto/api/dashboard', methods=['GET'])
+@app.route('/api/dashboard', methods=['GET'])
 def api_dashboard():
     """API endpoint for dashboard data"""
     manager = get_manager()
     dashboard = manager.get_dashboard()
     return jsonify(dashboard)
 
-@app.route('/rto/api/export', methods=['GET'])
+@app.route('/api/export', methods=['GET'])
 def api_export():
     """API endpoint for exporting student data"""
     manager = get_manager()
     export_data = manager.export_students()
     return jsonify(export_data)
 
-@app.route('/rto/api/students', methods=['GET'])
+@app.route('/api/students', methods=['GET'])
 def api_students():
     """API endpoint for getting all students"""
     manager = get_manager()
