@@ -655,7 +655,7 @@ def index():
     """Serve the main web interface"""
     return render_template('index.html')
 
-@app.route('/v1/new_inquiry', methods=['POST'])
+@app.route('/v1/api/new_inquiry', methods=['POST'])
 def api_new_inquiry():
     """API endpoint for new student inquiry"""
     data = request.get_json()
@@ -676,7 +676,7 @@ def api_new_inquiry():
         'success': True
     })
 
-@app.route('/v1/chat', methods=['POST'])
+@app.route('/v1/api/chat', methods=['POST'])
 def api_chat():
     """API endpoint for student conversation"""
     data = request.get_json()
@@ -700,7 +700,7 @@ def api_chat():
         'success': True
     })
 
-@app.route('/v1/followup/<student_id>', methods=['GET'])
+@app.route('/v1/api/followup/<student_id>', methods=['GET'])
 def api_followup(student_id):
     """API endpoint for generating follow-up messages"""
     manager = get_manager()
@@ -715,21 +715,21 @@ def api_followup(student_id):
         'success': True
     })
 
-@app.route('/v1/dashboard', methods=['GET'])
+@app.route('/v1/api/dashboard', methods=['GET'])
 def api_dashboard():
     """API endpoint for dashboard data"""
     manager = get_manager()
     dashboard = manager.get_dashboard()
     return jsonify(dashboard)
 
-@app.route('/v1/export', methods=['GET'])
+@app.route('/v1/api/export', methods=['GET'])
 def api_export():
     """API endpoint for exporting student data"""
     manager = get_manager()
     export_data = manager.export_students()
     return jsonify(export_data)
 
-@app.route('/v1/students', methods=['GET'])
+@app.route('/v1/api/students', methods=['GET'])
 def api_students():
     """API endpoint for getting all students"""
     manager = get_manager()
