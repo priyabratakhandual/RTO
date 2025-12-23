@@ -1211,7 +1211,7 @@
 
         async function loadStudents() {
             try {
-                const response = await fetch('/api/students');
+                const response = await fetch('/v1/students');
                 const data = await response.json();
 
                 const select = document.getElementById('chatStudentId');
@@ -1256,7 +1256,7 @@
 
         async function loadDashboard() {
             try {
-                const response = await fetch('/api/dashboard');
+                const response = await fetch('/v1/dashboard');
                 const data = await response.json();
 
                 document.getElementById('totalInquiries').textContent = data.total_inquiries;
@@ -1298,7 +1298,7 @@
             };
 
             try {
-                const response = await fetch('/api/new_inquiry', {
+                const response = await fetch('/v1/new_inquiry', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1364,7 +1364,7 @@
             input.value = '';
 
             try {
-                const response = await fetch('/api/chat', {
+                const response = await fetch('/v1/chat', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1433,7 +1433,7 @@
 
         async function getFollowup(studentId) {
             try {
-                const response = await fetch(`/api/followup/${studentId}`);
+                const response = await fetch(`/v1/followup/${studentId}`);
                 const result = await response.json();
 
                 if (response.ok) {
@@ -1453,7 +1453,7 @@
 
         async function exportStudents() {
             try {
-                const response = await fetch('/api/export');
+                const response = await fetch('/v1/export');
                 const data = await response.json();
 
                 // Create and download JSON file
