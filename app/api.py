@@ -30,7 +30,7 @@ def ping():
     """Health check endpoint - returns pong"""
     return jsonify({'status': 'pong', 'message': 'Server is running'}), 200
 
-@app.route('//rto/home', methods=['GET'])
+@app.route('/rto/home', methods=['GET'])
 def rto_home():
     """Route to home screen - redirects to main page"""
     return redirect(url_for('index'))
