@@ -1,0 +1,9 @@
+version: '3.9'
+
+services:
+  student-registration:
+    build: .
+    container_name: student-registration
+    restart: always
+    ports:
+      - "8000:8000"
