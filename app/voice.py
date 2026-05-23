@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Initialize OpenAI client for voice features
-openai_client = OpenAIClient(api_key=os.getenv("OPENAI_API_KEY"))
+#openai_client = OpenAIClient(api_key=os.getenv("OPENAI_API_KEY"))
 
 
 class VoiceOutputHandler:
