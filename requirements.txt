@@ -8,3 +8,5 @@ pygame
 simpleaudio
 flask
 flask-cors
+gunicorn
+uvicorn
