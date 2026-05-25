@@ -76,7 +76,7 @@ pipeline {
 
                     git add values.yaml
 
-                    git commit -m "Update image tag to $BUILD_NUMBER"
+                    git diff --cached --quiet || git commit -m "Update image tag to $BUILD_NUMBER"
 
                     git push origin main
                     '''
