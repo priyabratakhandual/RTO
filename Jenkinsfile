@@ -1,7 +1,6 @@
 pipeline {
 agent any
 
-```
 environment {
     AWS_REGION = 'ap-south-1'
     ACCOUNT_ID = '953472632969'
@@ -30,11 +29,8 @@ stages {
     stage('Login To ECR') {
         steps {
             sh '''
-            aws ecr get-login-password \
-            --region $AWS_REGION | \
-            docker login \
-            --username AWS \
-            --password-stdin \
+            aws ecr get-login-password --region $AWS_REGION | \
+            docker login --username AWS --password-stdin \
             $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
             '''
         }
@@ -76,8 +72,7 @@ stages {
             kubectl delete secret student-registration-secret \
             --ignore-not-found
 
-            kubectl create secret generic \
-            student-registration-secret \
+            kubectl create secret generic student-registration-secret \
             --from-literal=GROQ_API_KEY="$GROQ_API_KEY"
             '''
         }
@@ -107,6 +102,5 @@ post {
         echo 'Deployment Failed'
     }
 }
-```
 
 }
