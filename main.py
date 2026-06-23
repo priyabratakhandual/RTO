@@ -1,5 +1,5 @@
 """
-RTO AI Enrollment System - CLI Interface
+RTH AI Enrollment System - CLI Interface
 Command-line interface for the enrollment system
 """
 
