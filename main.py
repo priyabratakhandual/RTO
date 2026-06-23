@@ -43,7 +43,7 @@ def main():
     print("="*60 + "\n")
 
     # Welcome message
-    welcome_msg = "Welcome to the RTO AI Enrollment System. You can type your responses and I will speak my replies. Let's get started!"
+    welcome_msg = "Welcome to the RTH HETR AI Enrollment System. You can type your responses and I will speak my replies. Let's get started!"
     voice_output.speak(welcome_msg)
     print(f"\n{welcome_msg}\n")
     
