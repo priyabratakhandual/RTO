@@ -38,7 +38,7 @@ def main():
     voice_output = VoiceOutputHandler()
     
     print("\n" + "="*60)
-    print("RTO AI ENROLLMENT & MARKETING SYSTEM")
+    print("RTH AI ENROLLMENT & MARKETING SYSTEM")
     print("VOICE OUTPUT + TEXT INPUT INTERFACE")
     print("="*60 + "\n")
 
