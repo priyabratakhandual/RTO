@@ -2,97 +2,115 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "priyabratakhandual/rto-student-registration"
-        APP_REPO = "https://github.com/priyabratakhandual/RTO.git"
-        GITOPS_REPO = "https://github.com/priyabratakhandual/gitops.git"
+
+        AWS_REGION = 'ap-south-1'
+        ACCOUNT_ID = '953472632969'
+
+        ECR_REPOSITORY = 'myapp'
+        EKS_CLUSTER_NAME = 'my-eks-cluster'
+
+        IMAGE_TAG = "${BUILD_NUMBER}"
+
+        SECRET_NAME = 'rto-app-secret'
     }
 
     stages {
 
-        stage('Clone Application Repository') {
+        stage('Checkout') {
             steps {
-                git branch: 'main',
-                url: "${APP_REPO}"
+                checkout scm
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 sh '''
-                docker build -t $IMAGE_NAME:$BUILD_NUMBER .
+                docker build \
+                -t myapp:$IMAGE_TAG .
                 '''
             }
         }
 
-        stage('DockerHub Login') {
-
+        stage('Login To ECR') {
             steps {
-
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-
-                    sh '''
-                    echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                    '''
-                }
-            }
-        }
-
-        stage('Push Docker Image') {
-
-            steps {
-
                 sh '''
-                docker push $IMAGE_NAME:$BUILD_NUMBER
+                aws ecr get-login-password \
+                --region $AWS_REGION | \
+                docker login \
+                --username AWS \
+                --password-stdin \
+                $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
                 '''
             }
         }
 
-        stage('Update GitOps Repository') {
-
+        stage('Push To ECR') {
             steps {
+                sh '''
+                docker tag \
+                myapp:$IMAGE_TAG \
+                $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/myapp:$IMAGE_TAG
 
-                withCredentials([usernamePassword(
-                    credentialsId: 'github-creds',
-                    usernameVariable: 'GIT_USER',
-                    passwordVariable: 'GIT_PASS'
-                )]) {
-
-                    sh '''
-
-                    rm -rf gitops
-
-                    git clone https://$GIT_USER:$GIT_PASS@github.com/priyabratakhandual/gitops.git
-
-                    cd gitops/rto
-
-                    sed -i "s/tag:.*/tag: \\"$BUILD_NUMBER\\"/" values.yaml
-
-                    git config user.email "jenkins@local"
-                    git config user.name "jenkins"
-
-                    git add values.yaml
-
-                    git diff --cached --quiet || git commit -m "Update image tag to $BUILD_NUMBER"
-
-                    git push origin main
-                    '''
-                }
+                docker push \
+                $ACCOUNT_ID.dkr.ecr.ap-south-1.amazonaws.com/myapp:$IMAGE_TAG
+                '''
             }
         }
+
+        stage('Configure EKS') {
+            steps {
+                sh '''
+                aws eks update-kubeconfig \
+                --region $AWS_REGION \
+                --name $EKS_CLUSTER_NAME
+                '''
+            }
+        }
+
+        stage('Create Kubernetes Secret') {
+            steps {
+                sh '''
+                aws secretsmanager get-secret-value \
+                --secret-id $SECRET_NAME \
+                --region $AWS_REGION \
+                --query SecretString \
+                --output text > .env
+
+                kubectl delete secret student-registration-secret \
+                --ignore-not-found
+
+                kubectl create secret generic \
+                student-registration-secret \
+                --from-env-file=.env
+                '''
+            }
+        }
+
+        stage('Deploy To EKS') {
+            steps {
+                sh '''
+
+                kubectl apply -f deployment.yaml
+                kubectl apply -f service.yaml
+
+                kubectl set image deployment/student-registration \
+                student-registration=$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/myapp:$IMAGE_TAG
+
+                kubectl rollout status deployment/student-registration
+                '''
+            }
+        }
+
     }
 
     post {
 
         success {
-            echo 'CI/CD Pipeline Completed Successfully'
+            echo 'Deployment Successful'
         }
 
         failure {
-            echo 'Pipeline Failed'
+            echo 'Deployment Failed'
         }
     }
 }

@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: student-registration
+  labels:
+    app: student-registration
+
+spec:
+  replicas: 2
+
+  selector:
+    matchLabels:
+      app: student-registration
+
+  template:
+    metadata:
+      labels:
+        app: student-registration
+
+    spec:
+      containers:
+      - name: student-registration
+
+        image: 953472632969.dkr.ecr.ap-south-1.amazonaws.com/myapp:latest
+
+        imagePullPolicy: Always
+
+        ports:
+        - containerPort: 5008
+
+        envFrom:
+        - secretRef:
+            name: student-registration-secret
+
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
